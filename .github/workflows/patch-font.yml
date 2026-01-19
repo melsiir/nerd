@@ -30,6 +30,7 @@ jobs:
       # 4️⃣ Patch all fonts in fonts/ folder
       - name: Patch fonts
         run: |
+          mkdir -p patched
           for f in fonts/*.{ttf,otf}; do
             [ -f "$f" ] || continue
             echo "Patching $f ..."
@@ -37,11 +38,12 @@ jobs:
               --complete \
               --careful \
               --adjust-line-height
+            # Move all patched outputs to patched folder
+            mv *.ttf *.otf patched/ 2>/dev/null || true
           done
-
       # 5️⃣ Upload all patched fonts as artifact
       - name: Upload patched fonts
         uses: actions/upload-artifact@v4
         with:
           name: patched-fonts
-          path: '*Nerd Font*.ttf'
+          path: patched/

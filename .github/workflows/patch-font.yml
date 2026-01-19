@@ -1,0 +1,37 @@
+name: Patch Nerd Font
+
+on:
+  push:
+    paths:
+      - '**.otf'
+      - '**.ttf'
+  workflow_dispatch:
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y python3 python3-pip fontforge git
+
+      - name: Clone Nerd Fonts
+        run: git clone https://github.com/ryanoasis/nerd-fonts.git
+
+      - name: Patch font
+        run: |
+          python3 nerd-fonts/font-patcher SF-Mono-Medium.otf \
+          --complete \
+          --careful \
+          --adjust-line-height
+
+      - name: Upload patched font
+        uses: actions/upload-artifact@v3
+        with:
+          name: patched-font
+          path: '*Nerd Font*.ttf'

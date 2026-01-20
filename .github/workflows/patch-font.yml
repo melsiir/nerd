@@ -43,7 +43,6 @@ jobs:
             family_name=$(basename "$family_dir")
             echo "Processing family: $family_name"
 
-            workdir=$(mktemp -d)
             outdir="patched/$family_name"
             mkdir -p "$outdir"
 
@@ -51,34 +50,20 @@ jobs:
               [ -f "$font_file" ] || continue
               echo "Patching $font_file"
 
-              original_name=$(basename "$font_file")
-              cp "$font_file" "$workdir/"
-              pushd "$workdir" >/dev/null
-
-              python3 "$GITHUB_WORKSPACE/font-patcher" "$original_name" \
+              python3 "$GITHUB_WORKSPACE/font-patcher" "$font_file" \
                 --complete \
                 --careful \
-                --adjust-line-height
-
-              # Move ONLY patched outputs (exclude original)
-              for f in *.otf *.ttf; do
-                [ "$f" = "$original_name" ] && continue
-                mv "$f" "$GITHUB_WORKSPACE/$outdir/"
-              done
-
-              popd >/dev/null
+                --adjust-line-height \
+                --outputdir "$outdir"
             done
 
             echo "Final contents of $outdir:"
             ls -lh "$outdir"
 
-            # Zip with correct relative structure
             (
               cd patched
               zip -r "$family_name.zip" "$family_name"
             )
-
-            rm -rf "$workdir"
           done
       # 5️⃣ Create GitHub releases for each font family
       - name: Create releases per font family

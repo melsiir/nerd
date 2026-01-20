@@ -3,28 +3,26 @@ name: Patch Nerd Fonts Families & Release
 on:
   push:
     branches:
-      - main        # only trigger on main branch
-    paths:
-      - 'fonts/**'  # any change in fonts folder triggers workflow
+      - main
+    # paths:
+    #   - 'fonts/**'
 
 jobs:
   patch-and-release:
     runs-on: ubuntu-latest
     permissions:
       contents: write  # needed to create releases
-      id-token: write
-      packages: write
 
     steps:
-      # 1️⃣ Checkout repository
-      - name: Checkout repo
+      # 1️⃣ Checkout repo
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       # 2️⃣ Install dependencies
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y python3 python3-pip fontforge python3-fontforge unzip curl zip jq
+          sudo apt install -y python3 python3-pip fontforge python3-fontforge unzip curl zip gh jq
 
       # 3️⃣ Download FontPatcher.zip
       - name: Download FontPatcher
@@ -57,7 +55,7 @@ jobs:
               mv *Nerd\ Font*.ttf *Nerd\ Font*.otf "patched/$family_name/" 2>/dev/null || true
             done
 
-            # Convert .otf → .ttf
+            # Convert .otf → .ttf for Termux
             for f in patched/$family_name/*.otf; do
               [ -f "$f" ] || continue
               ttf_file="${f%.otf}.ttf"
@@ -65,14 +63,24 @@ jobs:
               fontforge -lang=ff -c "Open(\"$f\"); Generate(\"$ttf_file\")"
             done
 
-            # Zip family
+            # Zip the family
             zip -r "patched/$family_name.zip" "patched/$family_name" > /dev/null
           done
 
-      # 5️⃣ Create a release for each family zip
-      - name: Create GitHub releases
-        uses: softprops/action-gh-release@v1
-        with:
-          files: patched/*.zip
+      # 5️⃣ Create GitHub releases for each font family
+      - name: Create releases per font family
+        run: |
+          for zipfile in patched/*.zip; do
+            family_name=$(basename "$zipfile" .zip)
+            tag="nerdfont-${family_name}-${GITHUB_SHA::7}"
+
+            echo "Creating release for $family_name with tag $tag"
+
+            # Create release if it doesn't exist
+            gh release view "$tag" >/dev/null 2>&1 || \
+              gh release create "$tag" "$zipfile" \
+                --title "$family_name Nerd Font" \
+                --notes "Automatically generated Nerd Font patch for $family_name"
+          done
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

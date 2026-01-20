@@ -34,6 +34,8 @@ jobs:
       # 4️⃣ Patch, convert, and zip each font family
       - name: Patch and package font families
         run: |
+          set -e
+
           mkdir -p patched
 
           for family_dir in fonts/*/; do
@@ -41,12 +43,12 @@ jobs:
             echo "Processing family: $family_name"
 
             workdir=$(mktemp -d)
-            outdir="patched/$family_name"
+            outdir="$GITHUB_WORKSPACE/patched/$family_name"
             mkdir -p "$outdir"
 
             for font_file in "$family_dir"*.[oOtT][tTfF][fF]; do
               [ -f "$font_file" ] || continue
-              echo "Patching $font_file ..."
+              echo "Patching $font_file"
 
               cp "$font_file" "$workdir/"
               pushd "$workdir" >/dev/null
@@ -57,11 +59,18 @@ jobs:
                 --adjust-line-height \
                 --mono
 
-              # Move all patched outputs
-              mv *Nerd\ Font* "$GITHUB_WORKSPACE/$outdir/" || true
+              # Move ALL generated font files except original
+              for f in *.ttf *.otf; do
+                if [ "$f" != "$(basename "$font_file")" ]; then
+                  mv "$f" "$outdir/"
+                fi
+              done
 
               popd >/dev/null
             done
+
+            echo "Contents of $outdir:"
+            ls -lh "$outdir"
 
             # Convert OTF → TTF (Termux-safe)
             for f in "$outdir"/*.otf; do
@@ -69,9 +78,7 @@ jobs:
               fontforge -lang=ff -c "Open(\"$f\"); Generate(\"${f%.otf}.ttf\")"
             done
 
-            # Zip family
-            zip -r "patched/$family_name.zip" "$outdir" >/dev/null
-
+            zip -r "patched/$family_name.zip" "$outdir"
             rm -rf "$workdir"
           done
       # 5️⃣ Create GitHub releases for each font family
